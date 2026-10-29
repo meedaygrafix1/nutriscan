@@ -1,0 +1,13 @@
+import {readFile,stat} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const html=await readFile('dist/index.html','utf8');
+const js=await readFile('dist/app.js','utf8');
+const css=await readFile('dist/styles.css','utf8');
+const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+assert.equal(new Set(ids).size,ids.length,'Duplicate HTML ids');
+for(const m of html.matchAll(/href="#([^"]+)"/g))assert(ids.includes(m[1]),`Missing anchor ${m[1]}`);
+const assets=new Set([...`${html}\n${js}`.matchAll(/(?:src="assets\/|image: ')([^"']+\.(?:svg|png))/g)].map(m=>m[1]));
+for(const asset of assets)assert((await stat(`dist/assets/${asset}`)).size>0,`Missing asset ${asset}`);
+assert(!/figma\.com\/api\/mcp\/asset/.test(html+js+css),'Temporary Figma URL in runtime');
+assert(css.includes('prefers-reduced-motion'),'Reduced-motion support missing');
+console.log(`Verified ${assets.size} local artwork files, ${ids.length} unique anchors, and reduced-motion support.`);
